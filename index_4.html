@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Mirror</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; font-family: 'Orbitron', monospace; color: #ccc; min-height: 100vh; overflow-x: hidden; }
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100% { box-shadow:0 0 8px #00f5ff44; } 50% { box-shadow:0 0 20px #00f5ffaa; } }
+    @keyframes dotPulse { 0%,100% { box-shadow:0 0 4px #bf00ff; } 50% { box-shadow:0 0 12px #bf00ff; } }
+    @keyframes scanMove { from { background-position:0 0; } to { background-position:0 8px; } }
+    @keyframes ticker { from { transform:translateX(100%); } to { transform:translateX(-100%); } }
+    @keyframes clockPulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    @keyframes barGrow { from { width:0; } to { width:var(--w); } }
+    @keyframes orbit { from { transform:rotate(0deg) translateX(38px) rotate(0deg); } to { transform:rotate(360deg) translateX(38px) rotate(-360deg); } }
+    @keyframes orbitRev { from { transform:rotate(0deg) translateX(26px) rotate(0deg); } to { transform:rotate(-360deg) translateX(26px) rotate(360deg); } }
+    @keyframes glowLine { 0%,100% { opacity:0.3; } 50% { opacity:1; } }
+    @keyframes floatUp { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+
+    .scanline { position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,245,255,0.008) 3px,rgba(0,245,255,0.008) 4px); animation:scanMove 2s linear infinite; pointer-events:none; z-index:999; }
+
+    .layout { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto auto auto; gap:10px; padding:14px; max-width:1080px; margin:0 auto; }
+
+    .card { background:#080810; border:1px solid #1a1a2e; border-radius:12px; padding:14px; animation:fadeIn 0.4s ease both; }
+    .card-title { font-size:9px; letter-spacing:3px; color:#444; margin-bottom:12px; }
+
+    /* HEADER */
+    .header { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#000; border-bottom:1px solid #111; }
+    .logo { font-size:20px; font-weight:700; letter-spacing:6px; background:linear-gradient(90deg,#00f5ff,#bf00ff,#ff006e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .clock { font-size:28px; font-weight:700; color:#00f5ff; letter-spacing:4px; }
+    .date-str { font-size:10px; color:#555; letter-spacing:2px; text-align:right; margin-top:2px; }
+
+    /* CALENDAR */
+    .calendar { grid-column:1/-1; }
+    .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .cal-month { font-size:13px; letter-spacing:3px; background:linear-gradient(90deg,#00f5ff,#bf00ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .cal-nav button { background:none; border:1px solid #222; color:#555; padding:4px 12px; border-radius:5px; cursor:pointer; font-family:'Orbitron',monospace; font-size:9px; letter-spacing:1px; transition:all 0.2s; }
+    .cal-nav button:hover { border-color:#00f5ff; color:#00f5ff; }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .cal-label { text-align:center; font-size:8px; color:#333; padding:3px 0 6px; letter-spacing:2px; }
+    .cal-day { min-height:62px; border-radius:7px; border:1px solid #151525; background:#0a0a18; padding:5px; cursor:pointer; transition:all 0.18s; position:relative; overflow:hidden; animation:fadeIn 0.3s ease both; }
+    .cal-day:hover { border-color:#00f5ff55; background:#0d0d25; transform:scale(1.04); }
+    .cal-day.has-note { border-color:#bf00ff44; background:#0e0818; }
+    .cal-day.today { border-color:#00f5ff; animation:pulse 2.5s ease-in-out infinite, fadeIn 0.3s ease both; }
+    .cal-day.other-month { opacity:0.15; pointer-events:none; }
+    .cal-day-num { font-size:10px; color:#5566aa; margin-bottom:3px; }
+    .cal-day.today .cal-day-num { color:#00f5ff; }
+    .cal-day.has-note .cal-day-num { color:#aa88dd; }
+    .cal-day-note { font-size:7.5px; color:#7755aa; line-height:1.3; word-break:break-word; font-family:monospace; }
+    .cal-day.has-note .cal-day-note { color:#cc99ff; }
+    .dot { position:absolute; bottom:4px; right:4px; width:4px; height:4px; border-radius:50%; background:#bf00ff; animation:dotPulse 2s ease-in-out infinite; }
+
+    /* STATS */
+    .stats { grid-column:1/-1; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .stat-card { background:#080810; border:1px solid #1a1a2e; border-radius:10px; padding:12px; text-align:center; animation:floatUp 4s ease-in-out infinite; }
+    .stat-card:nth-child(2) { animation-delay:1s; }
+    .stat-card:nth-child(3) { animation-delay:2s; }
+    .stat-card:nth-child(4) { animation-delay:3s; }
+    .stat-val { font-size:22px; font-weight:700; margin-bottom:4px; }
+    .stat-label { font-size:8px; letter-spacing:2px; color:#444; }
+    .c-cyan { color:#00f5ff; }
+    .c-purple { color:#bf00ff; }
+    .c-pink { color:#ff006e; }
+    .c-green { color:#00ff88; }
+
+    /* HABITS */
+    .habits { }
+    .habit-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .habit-name { font-size:9px; letter-spacing:1px; color:#888; flex:1; }
+    .habit-bar-bg { flex:2; height:6px; background:#111; border-radius:3px; overflow:hidden; }
+    .habit-bar { height:100%; border-radius:3px; animation:barGrow 1.2s ease both; }
+    .habit-pct { font-size:9px; color:#555; width:30px; text-align:right; }
+    .habit-dots { display:flex; gap:3px; }
+    .habit-dot { width:8px; height:8px; border-radius:50%; border:1px solid #222; cursor:pointer; transition:all 0.15s; }
+    .habit-dot.done { box-shadow:0 0 6px currentColor; }
+
+    /* ORBIT */
+    .orbit-widget { display:flex; align-items:center; justify-content:center; }
+    .orbit-container { position:relative; width:100px; height:100px; }
+    .orbit-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:16px; height:16px; border-radius:50%; background:#00f5ff; box-shadow:0 0 12px #00f5ff; }
+    .orbit-ring { position:absolute; top:50%; left:50%; border-radius:50%; border:1px solid #1a1a2e; transform:translate(-50%,-50%); }
+    .ring1 { width:76px; height:76px; }
+    .ring2 { width:52px; height:52px; }
+    .planet { position:absolute; top:50%; left:50%; width:10px; height:10px; border-radius:50%; margin-top:-5px; margin-left:-5px; }
+    .p1 { background:#bf00ff; box-shadow:0 0 8px #bf00ff; animation:orbit 4s linear infinite; }
+    .p2 { background:#ff006e; box-shadow:0 0 8px #ff006e; animation:orbitRev 2.5s linear infinite; }
+    .orbit-stats { margin-left:16px; }
+    .orbit-stat { font-size:9px; color:#555; letter-spacing:1px; margin-bottom:6px; }
+    .orbit-stat span { color:#00f5ff; }
+
+    /* WEATHER */
+    .weather { }
+    .weather-main { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .weather-temp { font-size:36px; font-weight:700; color:#00f5ff; }
+    .weather-info { font-size:9px; color:#555; letter-spacing:1px; line-height:1.8; }
+    .weather-row { display:flex; justify-content:space-between; font-size:8px; color:#444; letter-spacing:1px; border-top:1px solid #111; padding-top:8px; }
+
+    /* TICKER */
+    .ticker { grid-column:1/-1; background:#050510; border:1px solid #111; border-radius:8px; padding:8px 0; overflow:hidden; }
+    .ticker-inner { display:flex; white-space:nowrap; animation:ticker 25s linear infinite; font-size:9px; letter-spacing:2px; color:#333; }
+    .ticker-item { margin-right:60px; }
+    .ticker-item span { color:#00f5ff; margin-left:6px; }
+    .ticker-item.up span { color:#00ff88; }
+    .ticker-item.down span { color:#ff006e; }
+
+    /* MODAL */
+    .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,8,0.9); z-index:1000; align-items:center; justify-content:center; }
+    .modal-bg.open { display:flex; }
+    .modal { background:#0c0c1a; border:1px solid #00f5ff44; border-radius:14px; padding:26px; width:340px; animation:fadeIn 0.2s ease; }
+    .modal-title { font-size:11px; color:#00f5ff; letter-spacing:3px; margin-bottom:14px; }
+    .modal textarea { width:100%; background:#080810; border:1px solid #1a1a2e; color:#bbbbd0; border-radius:6px; padding:10px; font-size:12px; font-family:monospace; resize:vertical; min-height:100px; outline:none; transition:all 0.2s; }
+    .modal textarea:focus { border-color:#bf00ff; box-shadow:0 0 10px #bf00ff22; }
+    .modal-btns { display:flex; gap:8px; margin-top:12px; justify-content:flex-end; }
+    .modal-btns button { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:1px; padding:7px 16px; border-radius:6px; cursor:pointer; border:1px solid #222; background:none; color:#666; transition:all 0.2s; }
+    .btn-save { border-color:#00f5ff88 !important; color:#00f5ff !important; }
+    .btn-save:hover { background:#00f5ff15 !important; }
+    .btn-clear { border-color:#ff006e44 !important; color:#ff006e88 !important; }
+    .btn-cancel:hover { background:#ffffff08; color:#aaa; }
+  </style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<div class="layout">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">MILAN OS</div>
+    <div>
+      <div class="clock" id="clock">00:00:00</div>
+      <div class="date-str" id="date-str">LOADING...</div>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-val c-cyan" id="stat-streak">12</div>
+      <div class="stat-label">DAY STREAK</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val c-purple" id="stat-done">4/6</div>
+      <div class="stat-label">TODAY'S HABITS</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val c-pink">847</div>
+      <div class="stat-label">CALORIES</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val c-green">8.2h</div>
+      <div class="stat-label">SLEEP</div>
+    </div>
+  </div>
+
+  <!-- HABITS -->
+  <div class="card habits">
+    <div class="card-title">// HABIT TRACKER</div>
+    <div id="habit-list"></div>
+  </div>
+
+  <!-- ORBIT + WEATHER -->
+  <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card-title">// SYSTEM STATUS</div>
+    <div class="orbit-widget">
+      <div class="orbit-container">
+        <div class="orbit-ring ring1"></div>
+        <div class="orbit-ring ring2"></div>
+        <div class="orbit-center"></div>
+        <div class="planet p1"></div>
+        <div class="planet p2"></div>
+      </div>
+      <div class="orbit-stats">
+        <div class="orbit-stat">FOCUS <span id="focus-time">2h 14m</span></div>
+        <div class="orbit-stat">TASKS <span>7/10</span></div>
+        <div class="orbit-stat">ENERGY <span>HIGH</span></div>
+        <div class="orbit-stat">UPTIME <span id="uptime">00:00</span></div>
+      </div>
+    </div>
+    <div class="weather">
+      <div class="card-title">// WEATHER · NYC</div>
+      <div class="weather-main">
+        <div class="weather-temp">24°</div>
+        <div class="weather-info">
+          <div>PARTLY CLOUDY</div>
+          <div>HUMIDITY 62%</div>
+          <div>WIND 12 KM/H</div>
+        </div>
+      </div>
+      <div class="weather-row">
+        <span>MON 22°</span><span>TUE 25°</span><span>WED 19°</span><span>THU 27°</span><span>FRI 23°</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="card calendar">
+    <div class="cal-nav">
+      <div class="cal-month" id="cal-title">JULY 2026</div>
+      <div>
+        <button onclick="changeMonth(-1)">&#9664;</button>
+        <button onclick="changeMonth(1)">&#9654;</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker">
+    <div class="ticker-inner">
+      <div class="ticker-item">BTC <span>$67,420</span></div>
+      <div class="ticker-item up">ETH <span>▲ $3,241</span></div>
+      <div class="ticker-item down">AAPL <span>▼ $189.42</span></div>
+      <div class="ticker-item up">NVDA <span>▲ $875.20</span></div>
+      <div class="ticker-item">S&P500 <span>5,432</span></div>
+      <div class="ticker-item down">TSLA <span>▼ $248.11</span></div>
+      <div class="ticker-item up">MSFT <span>▲ $412.88</span></div>
+      <div class="ticker-item">BTC <span>$67,420</span></div>
+      <div class="ticker-item up">ETH <span>▲ $3,241</span></div>
+      <div class="ticker-item down">AAPL <span>▼ $189.42</span></div>
+      <div class="ticker-item up">NVDA <span>▲ $875.20</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">// LOG ENTRY</div>
+    <textarea id="modal-input" placeholder="enter note..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-clear" onclick="clearNote()">CLEAR</button>
+      <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+      <button class="btn-save" onclick="saveNote()">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const notes = JSON.parse(localStorage.getItem('mirror-notes')||'{}');
+let curMonth = new Date();
+let selKey = null;
+const MONTHS=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+const habits = [
+  { name:'WORKOUT', color:'#00f5ff', days:['M','T','W','T','F','S','S'] },
+  { name:'MEDITATE', color:'#bf00ff', days:['M','T','W','T','F','S','S'] },
+  { name:'READ', color:'#ff006e', days:['M','T','W','T','F','S','S'] },
+  { name:'HYDRATE', color:'#00ff88', days:['M','T','W','T','F','S','S'] },
+  { name:'JOURNAL', color:'#ffaa00', days:['M','T','W','T','F','S','S'] },
+  { name:'COLD SHOWER', color:'#00aaff', days:['M','T','W','T','F','S','S'] },
+];
+
+const habitDone = JSON.parse(localStorage.getItem('habit-done')||'{}');
+
+function renderHabits() {
+  const today = new Date().toDateString();
+  const list = document.getElementById('habit-list');
+  list.innerHTML = habits.map((h,i) => {
+    const key = today+'-'+i;
+    const done = habitDone[key];
+    const pct = Math.floor(Math.random()*40+50);
+    return `<div class="habit-row">
+      <div class="habit-name">${h.name}</div>
+      <div class="habit-bar-bg"><div class="habit-bar" style="width:${pct}%;background:${h.color};--w:${pct}%"></div></div>
+      <div class="habit-pct">${pct}%</div>
+      <div class="habit-dot ${done?'done':''}" style="background:${done?h.color:'transparent'};border-color:${h.color};color:${h.color}" onclick="toggleHabit(${i})"></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHabit(i) {
+  const today = new Date().toDateString();
+  const key = today+'-'+i;
+  habitDone[key] = !habitDone[key];
+  localStorage.setItem('habit-done', JSON.stringify(habitDone));
+  renderHabits();
+}
+
+function key(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function saveNotes(){ localStorage.setItem('mirror-notes',JSON.stringify(notes)); }
+
+function renderCal() {
+  const y=curMonth.getFullYear(), m=curMonth.getMonth();
+  document.getElementById('cal-title').textContent=`${MONTHS[m]} ${y}`;
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML=DAYS.map(d=>`<div class="cal-label">${d}</div>`).join('');
+  const first=new Date(y,m,1).getDay();
+  const days=new Date(y,m+1,0).getDate();
+  const today=new Date();
+  for(let i=0;i<first;i++) grid.innerHTML+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=days;d++){
+    const k=key(y,m+1,d);
+    const isToday=today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d;
+    const hasNote=notes[k]&&notes[k].trim();
+    const snippet=hasNote?notes[k].slice(0,30)+(notes[k].length>30?'…':''):'';
+    grid.innerHTML+=`<div class="cal-day${isToday?' today':''}${hasNote?' has-note':''}" style="animation-delay:${(d*0.025).toFixed(2)}s" onclick="openModal('${k}',${y},${m+1},${d})">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-note">${snippet}</div>
+      ${hasNote?'<div class="dot"></div>':''}
+    </div>`;
+  }
+}
+
+function changeMonth(dir){ curMonth=new Date(curMonth.getFullYear(),curMonth.getMonth()+dir,1); renderCal(); }
+
+function openModal(k,y,m,d){
+  selKey=k;
+  document.getElementById('modal-title').textContent=`// LOG :: ${String(d).padStart(2,'0')}.${String(m).padStart(2,'0')}.${y}`;
+  document.getElementById('modal-input').value=notes[k]||'';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-input').focus(),50);
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); selKey=null; }
+function saveNote(){ if(selKey){ notes[selKey]=document.getElementById('modal-input').value; saveNotes(); } closeModal(); renderCal(); }
+function clearNote(){ if(selKey){ notes[selKey]=''; saveNotes(); } closeModal(); renderCal(); }
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
+
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  const s=String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent=`${h}:${m}:${s}`;
+  const days=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('date-str').textContent=`${days[now.getDay()]} · ${months[now.getMonth()]} ${now.getDate()} · ${now.getFullYear()}`;
+}
+
+const startTime = Date.now();
+function updateUptime(){
+  const elapsed = Math.floor((Date.now()-startTime)/1000);
+  const h=Math.floor(elapsed/3600), m=Math.floor((elapsed%3600)/60), s=elapsed%60;
+  document.getElementById('uptime').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+updateClock();
+setInterval(updateClock,1000);
+setInterval(updateUptime,1000);
+renderCal();
+renderHabits();
+</script>
+</body>
+</html>
