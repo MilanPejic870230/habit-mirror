@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Milan's Network</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --panel: #0d1321;
+    --border: #1a2540;
+    --accent: #00f0ff;
+    --text: #cdd6f4;
+    --muted: #6272a4;
+    --fam: #ff79c6;
+    --alumni: #50fa7b;
+    --hiring: #ffb86c;
+    --professor: #bd93f9;
+    --colleague: #8be9fd;
+    --other: #f1fa8c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .logo span { color: var(--text); }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .stats b { color: var(--accent); }
+
+  /* FILTERS */
+  .filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 4px;
+  }
+
+  .chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .chip.active { opacity: 1; }
+  .chip:not(.active) { opacity: 0.35; }
+  .chip:hover { opacity: 0.8; transform: translateY(-1px); }
+
+  .chip-fam        { color: var(--fam);      border-color: var(--fam);      background: rgba(255,121,198,0.08); }
+  .chip-alumni     { color: var(--alumni);   border-color: var(--alumni);   background: rgba(80,250,123,0.08); }
+  .chip-hiring     { color: var(--hiring);   border-color: var(--hiring);   background: rgba(255,184,108,0.08); }
+  .chip-professor  { color: var(--professor);border-color: var(--professor);background: rgba(189,147,249,0.08); }
+  .chip-colleague  { color: var(--colleague);border-color: var(--colleague);background: rgba(139,233,253,0.08); }
+  .chip-other      { color: var(--other);    border-color: var(--other);    background: rgba(241,250,140,0.08); }
+
+  .search-wrap {
+    margin-left: auto;
+    position: relative;
+  }
+
+  .search-wrap input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px 5px 30px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+    width: 180px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: '⌕';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  /* MAIN */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  #graph {
+    flex: 1;
+    height: 100%;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 320px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar.hidden {
+    transform: translateX(100%);
+    width: 0;
+    border: none;
+  }
+
+  .sidebar-header {
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .sidebar-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .sidebar-close:hover { color: var(--text); }
+
+  .node-name {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .node-role {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .node-org {
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-right: 6px;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .section-label {
+    font-size: 0.62rem;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 16px 0 8px;
+  }
+
+  .section-label:first-child { margin-top: 0; }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+  }
+
+  .info-row a {
+    color: var(--accent);
+    text-decoration: none;
+    word-break: break-all;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+  }
+
+  .info-row a:hover { text-decoration: underline; }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .notes-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  .connections-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .conn-tag {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    font-family: 'Space Mono', monospace;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .conn-tag:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 24px;
+    gap: 10px;
+  }
+
+  .empty-icon { font-size: 2rem; opacity: 0.3; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* PASSWORD GATE */
+  #gate {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .gate-box {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 44px;
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 360px;
+    box-shadow: 0 0 60px rgba(0,240,255,0.06);
+  }
+
+  .gate-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .gate-sub {
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    margin-top: -8px;
+  }
+
+  .gate-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: 'Space Mono', monospace;
+    outline: none;
+    text-align: center;
+    letter-spacing: 0.15em;
+    transition: border-color 0.2s;
+  }
+
+  .gate-input:focus { border-color: var(--accent); }
+
+  .gate-btn {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .gate-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .gate-btn:active { transform: translateY(0); }
+
+  .gate-error {
+    font-size: 0.68rem;
+    font-family: 'Space Mono', monospace;
+    color: #ff5555;
+    display: none;
+    margin-top: -8px;
+  }
+
+  .gate-error.show { display: block; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-title">MILAN'S NETWORK</div>
+    <div class="gate-sub">This page is private.<br/>Enter the password to continue.</div>
+    <input class="gate-input" type="password" id="gate-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPassword()" autofocus />
+    <div class="gate-error" id="gate-error">Incorrect password. Try again.</div>
+    <button class="gate-btn" onclick="checkPassword()">Enter</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">MILAN<span>'s</span> NETWORK</div>
+  <div class="stats">
+    <div><b id="stat-total">0</b> people</div>
+    <div><b id="stat-met">0</b> met</div>
+    <div><b id="stat-replied">0</b> orgs</div>
+    <div><b id="stat-sent">0</b> applications</div>
+  </div>
+</header>
+
+<div class="filters">
+  <span class="filter-label">Filter:</span>
+  <div class="chip chip-fam active"      data-cat="Fam/Friend"     onclick="toggleFilter(this)">Fam / Friend</div>
+  <div class="chip chip-alumni active"   data-cat="Alumni"         onclick="toggleFilter(this)">Alumni</div>
+  <div class="chip chip-hiring active"   data-cat="Hiring Manager" onclick="toggleFilter(this)">Hiring Manager</div>
+  <div class="chip chip-professor active" data-cat="Professor"     onclick="toggleFilter(this)">Professor</div>
+  <div class="chip chip-colleague active" data-cat="Colleague"     onclick="toggleFilter(this)">Colleague</div>
+  <div class="chip chip-other active"    data-cat="Other"          onclick="toggleFilter(this)">Other</div>
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Search..." oninput="handleSearch(this.value)" />
+  </div>
+</div>
+
+<div class="main">
+  <div id="graph"></div>
+  <div class="sidebar hidden" id="sidebar">
+    <div class="sidebar-header" id="sidebar-header">
+      <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+      <div class="node-name" id="s-name"></div>
+      <div class="node-role" id="s-role"></div>
+      <div id="s-badges"></div>
+    </div>
+    <div class="sidebar-body" id="sidebar-body">
+      <div class="empty-state">
+        <div class="empty-icon">◎</div>
+        <div>Click a node to view details</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA -- edit this section to add/update contacts
+// ============================================================
+// nodeType: "person" = circle, "company" = square, "application" = triangle
+const CONTACTS = [
+  {
+    id: 1,
+    name: "Milan Pejic",
+    role: "BSc Physics Student",
+    org: "McGill University",
+    category: "Other",
+    status: "self",
+    nodeType: "person",
+    linkedin: "",
+    email: "",
+    notes: "That's you.",
+    connections: [2, 5]
+  },
+  {
+    id: 2,
+    name: "Sarita Nori",
+    role: "Dermatologist",
+    org: "",
+    category: "Fam/Friend",
+    status: "met",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/sarita-nori-md-faad/",
+    email: "",
+    notes: "Central hub of Milan's internship outreach. Shared leads for Harvard REU, ORNL, CQIQC, OQI, Institut Courtois, Vertex, Philips, Fidelity, Bank of Canada. Connected Milan to Vamsee, Sameer, Mukta Joshi, Fanny (Vertex), and Maia.",
+    connections: [1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+  },
+  {
+    id: 3,
+    name: "Vamsee Sistla",
+    role: "Cloud Sales and Strategy",
+    org: "Google Cloud",
+    category: "Other",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/vamseesistla/",
+    email: "",
+    notes: "Connected through Sarita.",
+    connections: [2]
+  },
+  {
+    id: 4,
+    name: "Sameer Nori",
+    role: "AI, Cloud & ISV Partnerships",
+    org: "Arm",
+    category: "Other",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/sameernori/",
+    email: "",
+    notes: "Connected through Sarita.",
+    connections: [2]
+  },
+  {
+    id: 5,
+    name: "Edwin Tate",
+    role: "Airlines/Aviation Consultant and Contractor",
+    org: "",
+    category: "Fam/Friend",
+    status: "met",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/edwin-tait-9066a12/",
+    email: "",
+    notes: "Family friend. Connected Milan to Rhoda Davidson (his sister).",
+    connections: [1, 6]
+  },
+  {
+    id: 6,
+    name: "Rhoda Davidson",
+    role: "Professor Strategy & Organization",
+    org: "",
+    category: "Professor",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/rhoda-davidson-30b23b/",
+    email: "",
+    notes: "Edwin's sister.",
+    connections: [5]
+  },
+
+  // ---- PEOPLE (from Sarita convo) ----
+  {
+    id: 7,
+    name: "Arjun Shankar",
+    role: "Researcher",
+    org: "ORNL",
+    category: "Other",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "",
+    email: "",
+    notes: "Mallikarjun (Arjun) Shankar at Oak Ridge National Lab. Shared by Sarita as a contact/source for ORNL opportunity.",
+    connections: [2, 14]
+  },
+  {
+    id: 8,
+    name: "Mukta Joshi",
+    role: "Professional",
+    org: "Philips (former)",
+    category: "Other",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "https://www.linkedin.com/in/mukta-joshi-1633192/",
+    email: "",
+    notes: "Sarita sent Milan's CV to Mukta Joshi. Was working at Philips where Maia's husband also works. Can help with Philips internship referral.",
+    connections: [2, 19]
+  },
+  {
+    id: 9,
+    name: "Maia",
+    role: "Friend of Sarita",
+    org: "",
+    category: "Fam/Friend",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "",
+    email: "",
+    notes: "Sarita's friend. Husband works at Philips. Sarita offered to let Maia's husband know about Milan's application.",
+    connections: [2, 19]
+  },
+  {
+    id: 10,
+    name: "Fanny",
+    role: "Employee",
+    org: "Vertex",
+    category: "Other",
+    status: "referred",
+    nodeType: "person",
+    linkedin: "",
+    email: "",
+    notes: "Sarita's friend at Vertex. Promised to provide a special referral link for Milan's Vertex application. Milan applied without waiting for it first, then tried to withdraw.",
+    connections: [2, 20]
+  },
+  {
+    id: 11,
+    name: "Nyla",
+    role: "",
+    org: "",
+    category: "Fam/Friend",
+    status: "pending",
+    nodeType: "person",
+    linkedin: "",
+    email: "",
+    notes: "Mentioned by Sarita — being guided toward McGill/Montreal research focus. Potentially Sarita's daughter or family member.",
+    connections: [2]
+  },
+
+  // ---- COMPANIES ----
+  {
+    id: 12,
+    name: "ORNL",
+    role: "Oak Ridge National Laboratory",
+    org: "U.S. Dept. of Energy",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Oak Ridge National Laboratory. Source of internship lead via Arjun Shankar.",
+    connections: [2, 7]
+  },
+  {
+    id: 13,
+    name: "Harvard SEAS",
+    role: "School of Engineering & Applied Sciences",
+    org: "Harvard University",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Harvard John A. Paulson School of Engineering. Hosts the REU program. Sarita shared this — Milan noted he might apply again.",
+    connections: [2]
+  },
+  {
+    id: 14,
+    name: "CQIQC",
+    role: "Centre for Quantum Information & Quantum Control",
+    org: "University of Toronto",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "UofT quantum research centre. $10,000 award for 4 months. Sarita tracked when applications opened (Dec 6) using a Chrome extension.",
+    connections: [2, 7]
+  },
+  {
+    id: 15,
+    name: "OQI",
+    role: "Open Quantum Initiative",
+    org: "Chicago Quantum Exchange",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Open Quantum Initiative Undergraduate Fellowship at chicagoquantum.org. Sarita found this and shared it enthusiastically.",
+    connections: [2]
+  },
+  {
+    id: 16,
+    name: "Institut Courtois",
+    role: "Research Institute",
+    org: "Université de Montréal",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "UdeM research institute. Summer internship program. Sarita suggested emailing or going in person to ask if McGill students can apply.",
+    connections: [2]
+  },
+  {
+    id: 17,
+    name: "Bank of Canada",
+    role: "Central Bank",
+    org: "Government of Canada",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Sarita shared a students/recent grads opportunity at Bank of Canada.",
+    connections: [2]
+  },
+  {
+    id: 18,
+    name: "Vertex",
+    role: "Tech Company",
+    org: "",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Vertex (Data, Technology, and Engineering division). Milan applied for Summer Intern 2026 but was advised to withdraw and wait for Fanny's referral link.",
+    connections: [2, 10]
+  },
+  {
+    id: 19,
+    name: "Philips",
+    role: "Health Technology Company",
+    org: "",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Philips health tech. Intern - Data Strategy & Analytics role in Cambridge MA / Nashville TN, Summer 2026. Mukta Joshi and Maia's husband are contacts here.",
+    connections: [2, 8, 9, 21]
+  },
+  {
+    id: 20,
+    name: "Fidelity",
+    role: "Financial Services",
+    org: "",
+    category: "Other",
+    status: "pending",
+    nodeType: "company",
+    linkedin: "",
+    email: "",
+    notes: "Fidelity asset management careers for students. Shared by Sarita (Oct 13).",
+    connections: [2]
+  },
+
+  // ---- APPLICATIONS ----
+  {
+    id: 21,
+    name: "Harvard REU",
+    role: "Research Experience for Undergraduates",
+    org: "Harvard SEAS",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://seas.harvard.edu/office-education-outreach-community-programs/research-experience-undergraduates-reu",
+    notes: "Fill out form to be notified when applications open. Sarita shared Oct 12. Milan noted he saw this last year and may apply again.",
+    connections: [2, 13]
+  },
+  {
+    id: 22,
+    name: "CQIQC Summer Program",
+    role: "Undergraduate Summer Research Program",
+    org: "CQIQC / U of T",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://cqiqc.physics.utoronto.ca/cqiqc-programs/undergraduates/",
+    notes: "$10,000 award (4 months). Applications opened Dec 6. Sarita tracked the opening with a Chrome extension. Not limited to UofT students.",
+    connections: [2, 14]
+  },
+  {
+    id: 23,
+    name: "OQI Undergrad Fellowship",
+    role: "Undergraduate Fellowship",
+    org: "Chicago Quantum Exchange",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://chicagoquantum.org/oqi-undergraduate-fellowship",
+    notes: "Open Quantum Initiative Undergraduate Fellowship. Sarita found this and shared it excitedly (Oct 15).",
+    connections: [2, 15]
+  },
+  {
+    id: 24,
+    name: "Institut Courtois Internship",
+    role: "Summer Internship",
+    org: "Institut Courtois / UdeM",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://institut-courtois.umontreal.ca/en/summer-internship-2024/",
+    notes: "UdeM summer internship. Sarita suggested going in person to ask if McGill students can apply.",
+    connections: [2, 16]
+  },
+  {
+    id: 25,
+    name: "Vertex Intern 2026",
+    role: "Summer Intern — DTE",
+    org: "Vertex",
+    category: "Other",
+    status: "sent",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://wd501.myworkdayjobs.com",
+    notes: "Vertex Summer Intern 2026, Data Technology & Engineering. Milan applied Nov 26 but was told by Sarita to withdraw and wait for Fanny's referral link. Lesson: always wait for referral.",
+    connections: [2, 10, 18]
+  },
+  {
+    id: 26,
+    name: "Philips Intern — Data Strategy",
+    role: "Intern, Data Strategy & Analytics",
+    org: "Philips",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://careers.philips.com",
+    notes: "Cambridge MA or Nashville TN, Summer 2026. Sarita shared Jan 8. Mukta Joshi and Maia's husband are potential referrers.",
+    connections: [2, 8, 9, 19]
+  },
+  {
+    id: 27,
+    name: "Fidelity Asset Mgmt Intern",
+    role: "Asset Management Student Role",
+    org: "Fidelity",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "https://jobs.fidelity.com/en/students/asset-management/",
+    notes: "Fidelity asset management careers for students. Shared by Sarita Oct 13.",
+    connections: [2, 20]
+  },
+  {
+    id: 28,
+    name: "Bank of Canada — Students",
+    role: "Students & Recent Grads Program",
+    org: "Bank of Canada",
+    category: "Other",
+    status: "pending",
+    nodeType: "application",
+    linkedin: "",
+    email: "",
+    notes: "Bank of Canada student/recent grad opportunity. Shared by Sarita Nov 17.",
+    connections: [2, 17]
+  }
+];
+
+// ============================================================
+// CATEGORY COLORS
+// ============================================================
+const CAT_COLORS = {
+  "Fam/Friend":     { color: "#ff79c6", highlight: "#ffb3e0", bg: "rgba(255,121,198,0.15)" },
+  "Alumni":         { color: "#50fa7b", highlight: "#a0fbb8", bg: "rgba(80,250,123,0.15)" },
+  "Hiring Manager": { color: "#ffb86c", highlight: "#ffd4a8", bg: "rgba(255,184,108,0.15)" },
+  "Professor":      { color: "#bd93f9", highlight: "#ddc8ff", bg: "rgba(189,147,249,0.15)" },
+  "Colleague":      { color: "#8be9fd", highlight: "#c0f4ff", bg: "rgba(139,233,253,0.15)" },
+  "Other":          { color: "#f1fa8c", highlight: "#ffffc0", bg: "rgba(241,250,140,0.15)" },
+  "self":           { color: "#00f0ff", highlight: "#80f8ff", bg: "rgba(0,240,255,0.2)" }
+};
+
+const STATUS_CONFIG = {
+  "self":      { label: "YOU",              color: "#00f0ff", bg: "rgba(0,240,255,0.15)" },
+  "met":       { label: "Meeting Had",      color: "#50fa7b", bg: "rgba(80,250,123,0.15)" },
+  "replied":   { label: "Replied",          color: "#ffb86c", bg: "rgba(255,184,108,0.15)" },
+  "sent":      { label: "Message Sent",     color: "#bd93f9", bg: "rgba(189,147,249,0.15)" },
+  "referred":  { label: "Referred Me",      color: "#ff79c6", bg: "rgba(255,121,198,0.15)" },
+  "pending":   { label: "Not Yet Contacted",color: "#6272a4", bg: "rgba(98,114,164,0.15)" }
+};
+
+// ============================================================
+// VIS.JS SETUP
+// ============================================================
+let network, nodesDS, edgesDS;
+let activeFilters = new Set(["Fam/Friend","Alumni","Hiring Manager","Professor","Colleague","Other","self"]);
+let selectedNode = null;
+
+// Shape colors for companies and applications
+const NODE_TYPE_COLORS = {
+  company:     { color: "#ffb86c", highlight: "#ffd4a8", bg: "rgba(255,184,108,0.13)" },
+  application: { color: "#50fa7b", highlight: "#a0fbb8", bg: "rgba(80,250,123,0.10)" }
+};
+
+function buildNodes(contacts) {
+  // Count how many times each id appears as a connection target (inbound degree)
+  const inbound = {};
+  contacts.forEach(c => {
+    (c.connections || []).forEach(tid => {
+      inbound[tid] = (inbound[tid] || 0) + 1;
+    });
+  });
+
+  return contacts.map(c => {
+    const isSelf = c.status === "self";
+    const nodeType = c.nodeType || "person";
+
+    // Color: companies and applications have their own palette
+    let col;
+    if (isSelf) col = CAT_COLORS["self"];
+    else if (nodeType === "company") col = NODE_TYPE_COLORS.company;
+    else if (nodeType === "application") col = NODE_TYPE_COLORS.application;
+    else col = CAT_COLORS[c.category] || CAT_COLORS["Other"];
+
+    // Size based on total degree (own connections + inbound references)
+    const ownConns = (c.connections || []).length;
+    const inboundConns = inbound[c.id] || 0;
+    const totalDegree = ownConns + inboundConns;
+    const size = isSelf ? 38 : Math.max(18, 14 + totalDegree * 5);
+
+    // Shape
+    let shape;
+    if (isSelf || nodeType === "person") shape = "dot";
+    else if (nodeType === "company") shape = "square";
+    else if (nodeType === "application") shape = "triangle";
+    else shape = "dot";
+
+    return {
+      id: c.id,
+      label: c.name,
+      title: [c.role, c.org].filter(Boolean).join(" · ") || "",
+      color: {
+        background: col.bg,
+        border: col.color,
+        highlight: { background: col.bg, border: col.highlight },
+        hover: { background: col.bg, border: col.highlight }
+      },
+      font: { color: col.color, size: isSelf ? 16 : 13, face: "Syne", bold: isSelf },
+      size,
+      shape,
+      borderWidth: isSelf ? 3 : 2,
+      borderWidthSelected: 3,
+      shadow: { enabled: true, color: col.color + "55", size: isSelf ? 20 : 10, x: 0, y: 0 },
+      category: c.category,
+      nodeType,
+      hidden: false
+    };
+  });
+}
+
+function buildEdges(contacts) {
+  const edges = [];
+  const seen = new Set();
+  contacts.forEach(c => {
+    (c.connections || []).forEach(tid => {
+      const key = [Math.min(c.id, tid), Math.max(c.id, tid)].join("-");
+      if (!seen.has(key)) {
+        seen.add(key);
+        edges.push({
+          from: c.id, to: tid,
+          color: { color: "#1a2540", highlight: "#00f0ff44", hover: "#00f0ff44" },
+          width: 1.5,
+          smooth: { type: "dynamic" }
+        });
+      }
+    });
+  });
+  return edges;
+}
+
+function initGraph() {
+  nodesDS = new vis.DataSet(buildNodes(CONTACTS));
+  edgesDS = new vis.DataSet(buildEdges(CONTACTS));
+
+  const container = document.getElementById("graph");
+  network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+    physics: {
+      enabled: true,
+      barnesHut: { gravitationalConstant: -8000, centralGravity: 0.3, springLength: 140, springConstant: 0.04, damping: 0.2 }
+    },
+    interaction: { hover: true, tooltipDelay: 100, hideEdgesOnDrag: false },
+    nodes: { scaling: { min: 10, max: 50 } },
+    edges: { arrows: { to: { enabled: false } } }
+  });
+
+  network.on("click", params => {
+    if (params.nodes.length > 0) openSidebar(params.nodes[0]);
+    else closeSidebar();
+  });
+
+  updateStats();
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function openSidebar(nodeId) {
+  selectedNode = nodeId;
+  const c = CONTACTS.find(x => x.id === nodeId);
+  if (!c) return;
+
+  const col = c.status === "self" ? CAT_COLORS["self"] : (CAT_COLORS[c.category] || CAT_COLORS["Other"]);
+  const nodeType = c.nodeType || "person";
+  const st = STATUS_CONFIG[c.status] || STATUS_CONFIG["pending"];
+
+  document.getElementById("s-name").textContent = c.name;
+  document.getElementById("s-role").textContent = [c.role, c.org].filter(Boolean).join(" · ") || "No role/org added yet";
+
+  const nodeTypeLabel = nodeType === "company" ? "🟧 Org/Company" : nodeType === "application" ? "🔺 Application" : "● Person";
+  const nodeTypeBadgeColor = nodeType === "company" ? "#ffb86c" : nodeType === "application" ? "#50fa7b" : col.color;
+  const badgesEl = document.getElementById("s-badges");
+  badgesEl.innerHTML = `
+    <span class="badge" style="background:${col.bg};color:${col.color};border:1px solid ${col.color}44">${c.category}</span>
+    <span class="badge" style="background:rgba(255,255,255,0.05);color:${nodeTypeBadgeColor};border:1px solid ${nodeTypeBadgeColor}44">${nodeTypeLabel}</span>
+    <span class="badge" style="background:${st.bg};color:${st.color};border:1px solid ${st.color}44">${st.label}</span>
+  `;
+
+  const connNames = (c.connections || []).map(id => {
+    const contact = CONTACTS.find(x => x.id === id);
+    return contact ? `<span class="conn-tag" onclick="openSidebar(${id})">${contact.name}</span>` : "";
+  }).join("");
+
+  document.getElementById("sidebar-body").innerHTML = `
+    ${(c.role || c.org) ? `
+      <div class="section-label">Role</div>
+      <div class="info-row" style="font-size:0.82rem">${[c.role, c.org].filter(Boolean).join(" · ")}</div>
+    ` : ""}
+    ${c.linkedin ? `
+      <div class="section-label">LinkedIn</div>
+      <div class="info-row">🔗 <a href="${c.linkedin}" target="_blank">${c.linkedin}</a></div>
+    ` : (nodeType === "person" ? `
+      <div class="section-label">LinkedIn</div>
+      <div class="info-row" style="color:var(--muted);font-size:0.74rem;font-family:'Space Mono',monospace">— not added yet</div>
+    ` : "")}
+    ${(nodeType === "application" || nodeType === "company") && c.email ? `
+      <div class="section-label">Link</div>
+      <div class="info-row">🔗 <a href="${c.email}" target="_blank">${c.email}</a></div>
+    ` : (nodeType === "person" && c.email ? `
+      <div class="section-label">Email</div>
+      <div class="info-row">✉ <a href="mailto:${c.email}">${c.email}</a></div>
+    ` : "")}
+    ${c.notes ? `
+      <div class="section-label">Notes</div>
+      <div class="notes-box">${c.notes}</div>
+    ` : ""}
+    ${connNames ? `
+      <div class="section-label">Connections (${c.connections.length})</div>
+      <div class="connections-list">${connNames}</div>
+    ` : ""}
+  `;
+
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.remove("hidden");
+}
+
+function closeSidebar() {
+  document.getElementById("sidebar").classList.add("hidden");
+  selectedNode = null;
+  if (network) network.unselectAll();
+}
+
+// ============================================================
+// FILTERS & SEARCH
+// ============================================================
+function toggleFilter(chip) {
+  const cat = chip.dataset.cat;
+  if (activeFilters.has(cat)) {
+    if (activeFilters.size === 1) return;
+    activeFilters.delete(cat);
+    chip.classList.remove("active");
+  } else {
+    activeFilters.add(cat);
+    chip.classList.add("active");
+  }
+  applyVisibility();
+}
+
+function handleSearch(val) {
+  applyVisibility(val.toLowerCase());
+}
+
+function applyVisibility(search = "") {
+  const updates = CONTACTS.map(c => {
+    const catMatch = c.status === "self" || activeFilters.has(c.category);
+    const searchMatch = !search ||
+      c.name.toLowerCase().includes(search) ||
+      (c.org || "").toLowerCase().includes(search) ||
+      (c.role || "").toLowerCase().includes(search);
+    return { id: c.id, hidden: !(catMatch && searchMatch) };
+  });
+  nodesDS.update(updates);
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateStats() {
+  const real = CONTACTS.filter(c => c.status !== "self");
+  const people = real.filter(c => (c.nodeType || "person") === "person");
+  const companies = real.filter(c => c.nodeType === "company");
+  const apps = real.filter(c => c.nodeType === "application");
+  document.getElementById("stat-total").textContent = people.length;
+  document.getElementById("stat-met").textContent = real.filter(c => c.status === "met").length;
+  document.getElementById("stat-replied").textContent = companies.length;
+  document.getElementById("stat-sent").textContent = apps.length;
+}
+
+// ============================================================
+// PASSWORD GATE
+// Change the password below to whatever you want
+// ============================================================
+const PASSWORD = "network2026";
+
+function checkPassword() {
+  const val = document.getElementById("gate-input").value;
+  const err = document.getElementById("gate-error");
+  if (val === PASSWORD) {
+    document.getElementById("gate").style.display = "none";
+    initGraph();
+  } else {
+    err.classList.add("show");
+    document.getElementById("gate-input").value = "";
+    document.getElementById("gate-input").focus();
+    setTimeout(() => err.classList.remove("show"), 3000);
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+// Graph initializes only after correct password is entered
+</script>
+</body>
+</html>
